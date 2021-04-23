@@ -75,8 +75,6 @@ void transmit_UART(int value){
     }
     else if(value == 35){
         TO_TRANSMIT = 35;
-    }else{
-        continue;
     }
 
 }

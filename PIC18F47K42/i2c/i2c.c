@@ -31,7 +31,5 @@ void config_i2c(){
     I2C1ERR=0x00;
     //Error flags reset
     
-    
-
-
+   
 }

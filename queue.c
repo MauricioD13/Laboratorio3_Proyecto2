@@ -16,7 +16,7 @@ int main(){
         scanf("%d",&option);
         if(option == 1){
             printf("Index leer: %p \t index escribir: %p\n",index_leer,index_escribir);
-             if((index_escribir == index_leer) && (flag_inicio == 1)){
+            if((index_escribir == index_leer) && (flag_inicio == 1)){
                     printf("Buffer lleno\n");
                     flag_buffer = 1;
                     continue;
@@ -48,10 +48,13 @@ int main(){
             dato = *index_leer;
             printf("Dato leido: %d\n",dato);
             *index_leer = 0;
-            index_leer++;
+            
             if(index_leer == &vector[LENGTH]){
                 index_leer = &vector[0];
+            }else{
+                index_leer++;
             }
+            flag_buffer = 0;
             if(index_leer == index_escribir){
                 printf("No hay mas datos en la cola\n");
             }
