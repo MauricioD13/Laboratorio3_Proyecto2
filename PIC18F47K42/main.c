@@ -109,6 +109,10 @@ void __interrupt(irq(IRQ_U1RX),base(0x0008)) U1RX_isr(){
     PIR3bits.U1RXIF = 0;
     
 }
+
+void __interrupt(irq(IRQ_I2C1TX),base(0x0008) I2C_isr()){
+    
+}
 void init_PIC(){
     config_UART();
     config_i2c();
@@ -129,12 +133,11 @@ int main() {
         if((char)rx == '\n'){
             tx_parameters.action = pop(&queue);
             tx_parameters.quantity = pop(&queue);
-            aux = pop(&queue); //MSB of memory address
-            aux = aux<<8;
-            aux = pop(&queue) | aux;
-            tx_parameters.address = aux;//Complete memory address
+            tx_parameters.address_high = pop(&queue); //MSB of memory address
+            tx_parameters.address_low = pop(&queue);//Complete memory address
             cont_rx = 0;  
         }
+        
         
     }
     return (EXIT_SUCCESS);

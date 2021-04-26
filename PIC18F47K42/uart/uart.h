@@ -15,7 +15,8 @@
 typedef struct TX_PARAMETERS{
     char action;
     char quantity;
-    short int address;
+    short int address_high;
+    short int address_low;
 }TX_PARAMETERS;
 void config_UART();
 void transmit_UART(int value);

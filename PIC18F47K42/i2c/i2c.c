@@ -31,5 +31,19 @@ void config_i2c(){
     I2C1ERR=0x00;
     //Error flags reset
     
-   
+}
+
+void read_memory(int addr_r, TX_PARAMETERS *tx_parameters){
+
+    if(option == 'B'){ // Read a data
+        I2C1ADB1 = addr_r;
+        I2CTXB = tx_parameters->address_high;
+
+        I2C1CNT = 2 // Two bytes of address
+        I2C1CON0bits.RSEN = 1; // Restart bits
+        I2C1CON0bits.S = 1;     //Start bit
+
+        
+    }
+
 }
