@@ -44,6 +44,7 @@ void read_memory(int addr_r, TX_PARAMETERS *tx_parameters){
         I2C1CON0bits.S = 1;     //Start bit
 
         
+        
     }
 
 }
