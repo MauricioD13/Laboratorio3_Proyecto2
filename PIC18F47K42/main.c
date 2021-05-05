@@ -61,8 +61,12 @@
 
 // CONFIG5L
 #pragma config CP = OFF         // PFM and Data EEPROM Code Protection bit (PFM and Data EEPROM code protection disabled)
-
-short int vector[LENGTH];
+typedef STRUCT FLAGS{
+    short int uart_rx_end;
+    short int i2c_tx_end;
+}FLAGS;
+short int vector_UART[LENGTH];
+short int vector_I2C[LENGHT];
 char buffer[8];
 void oscillator_module (void){
     /*
@@ -101,7 +105,8 @@ void oscillator_module (void){
 int aux;
 int rx;
 int cont_rx;
-QUEUE queue;
+QUEUE queue_from_UART;
+QUEUE queue_from_I2C;
 TX_PARAMETERS tx_parameters;
 void __interrupt(irq(IRQ_U1RX),base(0x0008)) U1RX_isr(){
     
@@ -117,25 +122,40 @@ void init_PIC(){
     config_UART();
     config_i2c();
 }
+
+
+FLAGS flags;
+
+
 int main() {
     INTCON0 = 0x80;
     init_PIC();
     oscillator_module();
-    queue_init(&queue,&vector);
+    queue_init(&queue_from_UART, &vector_UART);
+    queue_init(&queue_from_I2C, &vector_I2C);
     
     while (1){
-        if(rx != 0){
-            
-            push(&queue,rx);
-            rx = 0;
-            cont_rx++;
-        }
         if((char)rx == '\n'){
             tx_parameters.action = pop(&queue);
             tx_parameters.quantity = pop(&queue);
             tx_parameters.address_high = pop(&queue); //MSB of memory address
             tx_parameters.address_low = pop(&queue);//Complete memory address
-            cont_rx = 0;  
+            flags.uart_rx_end = 1;
+            
+        }
+        else if(rx != 0){
+            
+            push(&queue,rx);
+            rx = 0;
+            cont_rx++;
+        }
+
+        if(flag.uart_rx_end == 1){
+            if(tx_parameters.action == 'R'){
+                read_memory(&tx_parameters)
+                
+
+            }
         }
         
         

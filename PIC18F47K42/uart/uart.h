@@ -12,12 +12,7 @@
 #define RX_BUFFER_EMPTY U1FIFObits.RXBE
 #define TO_TRANSMIT U1TXB
 #define RECEIVED U1RXB
-typedef struct TX_PARAMETERS{
-    char action;
-    char quantity;
-    short int address_high;
-    short int address_low;
-}TX_PARAMETERS;
+
 void config_UART();
 void transmit_UART(int value);
 int receive_UART();
