@@ -59,6 +59,7 @@ short int pop(QUEUE *queue){
 
     queue->buffer_flag = 0;
     if(queue->read_index == queue->write_index){
+        queue->queue_empty = 1;
         return 0;// Case where queue is empty
     }
     

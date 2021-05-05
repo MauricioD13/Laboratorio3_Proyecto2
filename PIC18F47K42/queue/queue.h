@@ -8,6 +8,7 @@ typedef struct QUEUE{
     short int *write_index;
     short int *last_pointer;
     short int *initial_pointer;
+    short int queue_empty;
 }QUEUE;
 void queue_init(QUEUE *queue,short int *vector);
 short int push(QUEUE *queue, int data);
