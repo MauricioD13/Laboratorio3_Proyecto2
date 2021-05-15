@@ -30,53 +30,34 @@ void config_UART(){
     
     //X = ((Fosc/Desired baud rate)/16) - 1
     
-    U1BRGL = 207;//19200
-    U1BRGH = 0;
+    U1BRGL = 0xA0;
+    //207 19200
+    //415 9600
+    U1BRGH = 1;
     
     //Enable receiver interrupts
     //PIE3bits.U1RXIE = 1;
    
 }
 
-void transmit_UART(int value){
-    
-    if (value == 0){
-        TO_TRANSMIT = 48;
+short int error_handler(int *cont_tx,short int error_handling){
+   
+    if(*cont_tx == 0){
+        TO_TRANSMIT = 69;
+        (*cont_tx)++;
+    }else if((*cont_tx) == 1){
+        TO_TRANSMIT = 82;
+        (*cont_tx)++;
+    }else{
+        TO_TRANSMIT = 82;
+        error_handling = 0;
+        (*cont_tx) = 0;
+        return error_handling;
     }
-    else if(value ==1){
-        TO_TRANSMIT = 49;
-    }
-    else if(value ==2){
-        TO_TRANSMIT = 50;
-    }
-    else if(value ==3){
-        TO_TRANSMIT = 51;
-    }
-    else if(value ==4){
-       TO_TRANSMIT = 52;
-    }
-    else if(value ==5){
-       TO_TRANSMIT = 53;
-    }
-    else if(value ==6){
-        TO_TRANSMIT = 54;
-    }
-    else if(value ==7){
-        TO_TRANSMIT = 55;
-    }
-    else if(value ==8){
-        TO_TRANSMIT = 56;
-    }
-    else if(value ==9){
-        TO_TRANSMIT = 57;
-    }
-    else if(value == 45){
-        TO_TRANSMIT = 45;
-    }
-    else if(value == 35){
-        TO_TRANSMIT = 35;
-    }
-
+    return 1;
+    //E 69
+    //R 82
+    // \n 10
 }
 
 int receive_UART(){

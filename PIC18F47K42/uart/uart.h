@@ -15,6 +15,7 @@
 
 void config_UART();
 void transmit_UART(int value);
+short int error_handler(int *cont_tx,short int error_handling);
 int receive_UART();
 
 #endif	/* UART_H */

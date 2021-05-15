@@ -11,15 +11,17 @@ queue_param.write_index = &vector[0];
 queue_param.buffer_flag = 0;
 queue_param.begin_flag = 0;
 */
-void queue_init(QUEUE *queue,short int *vector){
+void queue_init(QUEUE *queue,short int *vector){ // QUEUE INITIALIZATION
     queue->last_pointer = &vector[LENGTH];
     queue->initial_pointer = &vector[0];
     queue->read_index = &vector[0];
     queue->write_index = &vector[0];
     queue->buffer_flag = 0;
     queue->begin_flag = 0;
+    queue->queue_empty = 0;
+    queue->quantity = 0;
 }
-short int push(QUEUE *queue, int data){
+short int push(QUEUE *queue, short int data){
     
     if((queue->write_index == queue->read_index) && (queue->begin_flag == 1)){
               
@@ -32,6 +34,7 @@ short int push(QUEUE *queue, int data){
     queue->begin_flag = 1;
     if(queue->buffer_flag == 0){
         *(queue->write_index) = data;
+        queue->quantity++;
         if(queue->write_index == (queue->last_pointer)-1){ 
             queue->write_index = queue->initial_pointer;
         }else{
@@ -49,8 +52,9 @@ short int pop(QUEUE *queue){
     }
             
     data = *(queue->read_index);
+    queue->quantity--;
     *(queue->read_index) = 0;
-
+    
     if(queue->read_index == queue->last_pointer){
         queue->read_index = queue->initial_pointer;
     }else{
@@ -60,8 +64,8 @@ short int pop(QUEUE *queue){
     queue->buffer_flag = 0;
     if(queue->read_index == queue->write_index){
         queue->queue_empty = 1;
-        return 0;// Case where queue is empty
+        // Case where queue is empty
     }
-    
     return data;
+    
 }
