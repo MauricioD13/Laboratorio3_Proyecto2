@@ -1,5 +1,6 @@
 #include "i2c.h"
 #include <pic18f47k42.h>
+
 int addr_w=0xAE;  //10101110 Slave address
 int addr_r=0xAF;
 void config_i2c(){
@@ -69,7 +70,7 @@ void config_i2c(){
     I2C1ERR = 0x00;
 }
 
-void write_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
+short int write_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     
     I2C1CON0bits.EN = 1;
     
@@ -90,12 +91,16 @@ void write_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     
     I2C1CON0bits.EN = 0;
     I2C1PIR = 0x00;
+    if(I2C1ERR != 0x00){
+        return 1;
+    }
+    return 0;
 }
 
 void read_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
-    int rx = 0;
+    int aux_rx = 0;
     I2C1CON0bits.EN = 1;
-    I2C1CNT = parameters->bytes_to_read;
+    I2C1CNT = 2;
     I2C1ADB1 = 0xA0; // Slave address to write
     I2C1TXB = parameters->addr_high;//MSB memory address to read
     I2C1CON0bits.RSEN = 1; 
@@ -111,15 +116,15 @@ void read_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     while(I2C1STAT1bits.TXBE == 0);
     while(!I2C1CON0bits.MDR); // Master ready
             
-    I2C1CNT = parameters->bytes_to_read;
+    I2C1CNT = parameters->bytes_to_read + 1;
     I2C1ADB1 = 0xA1; //Slave address to read
     I2C1CON0bits.RSEN = 0;
     I2C1CON0bits.S = 1;  
-            
+    
     while(I2C1CNT){
         while(!I2C1STAT1bits.RXBF);     // Wait to receive a data in the buffer
-        rx = I2C1RXB;   
-        push(queue,rx);//Push data into the queue
+        aux_rx = I2C1RXB;   
+        push(queue,aux_rx);//Push data into the queue
     }     
     I2C1CON0bits.EN = 0;
 }

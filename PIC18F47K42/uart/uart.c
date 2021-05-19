@@ -6,6 +6,7 @@ void config_UART(){
      
     //UART config
     U1CON0 = 0x30;
+    U1CON0bits.TXEN = 0;
     U1CON1 = 0x80;
     U1CON2 = 0x00;
     U1FIFO = 0x00;
@@ -23,7 +24,10 @@ void config_UART(){
     //RX
     TRISCbits.TRISC7 = 1; // Input RX
     ANSELCbits.ANSELC7 = 0; // As digital
+    
+    U1ERRIEbits.U1TXMTIE = 1;
     PIE3bits.U1RXIE = 1; //Interrupt enable
+    PIE3bits.U1TXIE = 1;
     PIE3bits.U1IE = 1;
     U1RXPPS = 0x17; //0b00010111;
     
@@ -40,26 +44,29 @@ void config_UART(){
    
 }
 
-short int error_handler(int *cont_tx,short int error_handling){
+short int error_handler(char *vector, short int *cont){
    
-    if(*cont_tx == 0){
-        TO_TRANSMIT = 69;
-        (*cont_tx)++;
-    }else if((*cont_tx) == 1){
-        TO_TRANSMIT = 82;
-        (*cont_tx)++;
-    }else{
-        TO_TRANSMIT = 82;
-        error_handling = 0;
-        (*cont_tx) = 0;
-        return error_handling;
-    }
-    return 1;
+    U1FIFObits.TXBE = 1, PIE3bits.U1TXIE = 1;
+    *(vector + 1) = 'R';
+    *(vector + 2) = 'R';
+    *(vector + 3) = 'E';
+    *cont = 4;
+    U1CON0bits.TXEN = 1;
+    return 0;
     //E 69
     //R 82
     // \n 10
 }
 
+void int_transmit(char *vector, short int *cont){
+    
+    U1FIFObits.TXBE = 1, PIE3bits.U1TXIE = 1;
+    *(vector + 1) = 'K';
+    *(vector + 2) = 'O';
+    *cont = 3;
+    U1CON0bits.TXEN = 1;
+    
+}
 int receive_UART(){
     return RECEIVED;
 }

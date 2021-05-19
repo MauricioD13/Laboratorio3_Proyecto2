@@ -18,7 +18,7 @@ void queue_init(QUEUE *queue,short int *vector){ // QUEUE INITIALIZATION
     queue->write_index = &vector[0];
     queue->buffer_flag = 0;
     queue->begin_flag = 0;
-    queue->queue_empty = 0;
+    queue->queue_empty = 1;
     queue->quantity = 0;
 }
 short int push(QUEUE *queue, short int data){
@@ -34,11 +34,12 @@ short int push(QUEUE *queue, short int data){
     queue->begin_flag = 1;
     if(queue->buffer_flag == 0){
         *(queue->write_index) = data;
+        queue->queue_empty = 0;
         queue->quantity++;
         if(queue->write_index == (queue->last_pointer)-1){ 
             queue->write_index = queue->initial_pointer;
         }else{
-            queue->write_index++;
+            (queue->write_index)++;
         }
     }
     

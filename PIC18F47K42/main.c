@@ -68,9 +68,10 @@ typedef struct FLAGS{
     short int uart_rx_end;
     short int i2c_tx_end;
     short int error_handling;
+    short int reading_done;
+    short int queue_overflow;
 }FLAGS;
 
-char buffer[8];
 void oscillator_module (void){
     /*
      OSCCON1
@@ -106,13 +107,42 @@ void oscillator_module (void){
     
 }
 
-int aux;
-int rx;
+
+int rx = 500;
 int cont_rx;
-int error = 0;
+short int error = 0;
 int cont_tx = 0;
+int cont = 0;
 QUEUE queue;
 TX_PARAMETERS tx_parameters; 
+char vector_uart[4];
+FLAGS flags;
+char aux;
+void __interrupt(irq(IRQ_U1TX), base(0x0008)) U1TX_isr(){
+    if(flags.reading_done == 1){
+        if(queue.queue_empty == 1){
+            U1CON0bits.TXEN = 0, queue_init(&queue,&vector), U1FIFObits.TXBE = 1;
+            PIE3bits.U1TXIE = 0;
+            flags.reading_done = 0;
+        }else{
+            U1TXB = pop(&queue);
+        }
+        
+    }else{
+        if(cont == 0){
+            U1CON0bits.TXEN = 0, U1FIFObits.TXBE = 1, PIE3bits.U1TXIE = 0;
+        }else{
+            cont--;
+            aux = vector_uart[cont];
+            U1TXB = vector_uart[cont];
+        }
+
+        
+    }
+}
+
+
+
 void __interrupt(irq(IRQ_U1RX),base(0x0008)) U1RX_isr(){
     
     rx = U1RXB;  
@@ -120,14 +150,43 @@ void __interrupt(irq(IRQ_U1RX),base(0x0008)) U1RX_isr(){
     
 }
 
+short int error_evaluator(TX_PARAMETERS *tx_parameters){
+    if(!(tx_parameters->action == 'W' || tx_parameters->action == 'R' || tx_parameters->action == 0)){
+        tx_parameters->action = 0;
+        return 1;
+        
+    }
+    else if(!(tx_parameters->quantity == 'B' || tx_parameters->quantity == 'S' || tx_parameters->quantity == 0)){
+        tx_parameters->quantity = 0;
+        return 2;
+        
+    }
+    else if(tx_parameters->addr_high > 127){
+        tx_parameters->addr_high = 0;
+        return 3;
+        
+    }else{
+        return 0;
+    }
+}
 
 void init_PIC(){
     config_UART();
     config_i2c();
+    flags.error_handling = 0;
+    flags.i2c_tx_end = 0;
+    flags.uart_rx_end = 0;
+    flags.queue_overflow = 0;
 }
 
 
-FLAGS flags;
+void parameters_reset(TX_PARAMETERS *tx_parameters){
+    tx_parameters->action = 0;
+    tx_parameters->quantity = 0;
+    tx_parameters->addr_high = 0;
+    tx_parameters->addr_low = 0;
+    cont_rx = 0;
+}
 
 
 int main() {
@@ -138,60 +197,82 @@ int main() {
     
     
     while (1){
-        if((rx == '\n') && (flags.error_handling == 0)){
+        if((rx == 10) && (flags.error_handling == 0)){
             tx_parameters.action = pop(&queue); 
-            if(!(tx_parameters.action == 'W' || tx_parameters.action == 'R' || tx_parameters.action == 0)){
-                error = 1;
-                tx_parameters.action = 0;
-            }
             tx_parameters.quantity = pop(&queue);
-            if(!(tx_parameters.quantity == 'B' || tx_parameters.quantity == 'S' || tx_parameters.quantity == 0)){
-                error = 2;
-                tx_parameters.quantity = 0;
-            }
-            tx_parameters.addr_high = (short int)pop(&queue) - 48; //MSB of memory address
-            if(tx_parameters.addr_high > 127){
-                error = 3;
-                tx_parameters.addr_high = 0;
-            }
-            tx_parameters.addr_low = (short int)pop(&queue)- 48;//Complete memory address
+            tx_parameters.addr_high = (short int)pop(&queue); //MSB of memory address
+            tx_parameters.addr_low = (short int)pop(&queue);//LSB of memory address
+            error = error_evaluator(&tx_parameters);
             flags.uart_rx_end = 1;
             if(error){
                 flags.error_handling = 1;
                 flags.uart_rx_end = 0;
+                error = 0;
             }
+            flags.queue_overflow = 0;
+            rx = 500;
             
             
         }
-        else if((rx != 0) && (rx != ',') && (flags.error_handling == 0)){
+        if((rx != 500) && (rx != ',') && (flags.error_handling == 0) && (flags.queue_overflow == 0)){
             
             push(&queue,rx);
-            rx = 0;
+            rx = 500;
             cont_rx++;
+            if(cont_rx >= LENGTH){
+                flags.error_handling = 1;
+                queue_init(&queue, &vector);
+                parameters_reset(&tx_parameters);
+                flags.queue_overflow = 1;
+            }
         }
         if(flags.error_handling == 1){
-            flags.error_handling = error_handler(&cont_tx, flags.error_handling);
+            flags.error_handling = error_handler(&vector_uart, &cont);
+            parameters_reset(&tx_parameters);
         }
         if(flags.uart_rx_end == 1){
             if(tx_parameters.action == 'R'){
-                tx_parameters.bytes_to_read = cont_rx - 4;
-                read_bytes(&queue, &tx_parameters);
+                if(tx_parameters.quantity == 'B'){
+                    tx_parameters.bytes_to_read = 1;
+                    queue_init(&queue,&vector);
+                    read_bytes(&queue, &tx_parameters);
+                }else{
+                    tx_parameters.bytes_to_read = pop(&queue);
+                    queue_init(&queue,&vector);
+                    read_bytes(&queue, &tx_parameters);
+                }
+                
+                if(queue.queue_empty == 0){
+                    flags.reading_done = 1;
+                    PIE3bits.U1TXIE = 1;
+                    U1FIFObits.TXBE = 1;
+                    U1CON0bits.TXEN = 1;
+                }
+                parameters_reset(&tx_parameters);
+                
+                flags.uart_rx_end = 0;
                 
             }else if(tx_parameters.action == 'W'){
                 tx_parameters.bytes_to_write = cont_rx - 4;
-                write_bytes(&queue, &tx_parameters); 
+                error = write_bytes(&queue, &tx_parameters);
+                if(error == 0){
+                    
+                    int_transmit(&vector_uart,&cont);
+                }
+                queue_init(&queue, &vector);
+                parameters_reset(&tx_parameters);
+                flags.uart_rx_end = 0;
                 
             }
             /*Errores:
-                 - Cola vacia
-                 - Direccion erronea 
-                 - Accion erronea
-                 - Cantidad erronea
+                 - Direccion erronea +
+                 - Accion erronea  +
+                 - Cantidad erronea (Buffer overflow) +
              *   - Transmision I2C
              *   - Recepcion I2C
-             *  
+             *  - 
              - Enviar por pagina
-             - Tamaño de la cola
+             
              
              Extras:
              * - Manejo no secuencial

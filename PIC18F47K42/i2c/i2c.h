@@ -12,5 +12,5 @@ typedef struct TX_PARAMETERS{
 
 void config_i2c();
 void read_bytes(QUEUE *queue, TX_PARAMETERS *tx_parameters);
-void write_bytes(QUEUE *queue, TX_PARAMETERS *tx_parameters);
+short int write_bytes(QUEUE *queue, TX_PARAMETERS *tx_parameters);
 #endif
