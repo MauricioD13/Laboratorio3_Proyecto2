@@ -61,7 +61,9 @@
 
 // CONFIG5L
 #pragma config CP = OFF         // PFM and Data EEPROM Code Protection bit (PFM and Data EEPROM code protection disabled)
+#define LENGTH 1100
 
+#define _XTAL_FREQ 64000000
 short int vector[LENGTH];
 
 typedef struct FLAGS{
@@ -115,9 +117,11 @@ int cont_tx = 0;
 int cont = 0;
 QUEUE queue;
 TX_PARAMETERS tx_parameters; 
-char vector_uart[4];
+char vector_uart[5];
 FLAGS flags;
 char aux;
+int aux_bytes = 0;
+int amount;
 void __interrupt(irq(IRQ_U1TX), base(0x0008)) U1TX_isr(){
     if(flags.reading_done == 1){
         if(queue.queue_empty == 1){
@@ -133,7 +137,6 @@ void __interrupt(irq(IRQ_U1TX), base(0x0008)) U1TX_isr(){
             U1CON0bits.TXEN = 0, U1FIFObits.TXBE = 1, PIE3bits.U1TXIE = 0;
         }else{
             cont--;
-            aux = vector_uart[cont];
             U1TXB = vector_uart[cont];
         }
 
@@ -187,14 +190,15 @@ void parameters_reset(TX_PARAMETERS *tx_parameters){
     tx_parameters->addr_low = 0;
     cont_rx = 0;
 }
-
-
+int per_error = 0;
+int aux_quan;
 int main() {
     INTCON0 = 0x80;
     oscillator_module();
     init_PIC();
     queue_init(&queue, &vector);
-    
+    //TRISD = 0x00;
+    //ANSELD = 0x00;
     
     while (1){
         if((rx == 10) && (flags.error_handling == 0)){
@@ -204,9 +208,11 @@ int main() {
             tx_parameters.addr_low = (short int)pop(&queue);//LSB of memory address
             error = error_evaluator(&tx_parameters);
             flags.uart_rx_end = 1;
+            tx_parameters.bytes_to_write = cont_rx - 4;
             if(error){
                 flags.error_handling = 1;
                 flags.uart_rx_end = 0;
+                per_error = error;
                 error = 0;
             }
             flags.queue_overflow = 0;
@@ -227,7 +233,7 @@ int main() {
             }
         }
         if(flags.error_handling == 1){
-            flags.error_handling = error_handler(&vector_uart, &cont);
+            flags.error_handling = error_handler(&vector_uart, &cont, &per_error);
             parameters_reset(&tx_parameters);
         }
         if(flags.uart_rx_end == 1){
@@ -237,39 +243,73 @@ int main() {
                     queue_init(&queue,&vector);
                     read_bytes(&queue, &tx_parameters);
                 }else{
+                    aux_quan = pop(&queue);
                     tx_parameters.bytes_to_read = pop(&queue);
+                    aux_bytes = tx_parameters.bytes_to_read;
                     queue_init(&queue,&vector);
+                    
+                    while(aux_quan){
+                            tx_parameters.bytes_to_read = 254;
+                            read_bytes(&queue, &tx_parameters);
+                            tx_parameters.addr_high +=1;
+                            i2c_reset();
+                            aux_quan--;
+                    }
+                    tx_parameters.bytes_to_read = aux_bytes;
                     read_bytes(&queue, &tx_parameters);
+ 
                 }
                 
                 if(queue.queue_empty == 0){
                     flags.reading_done = 1;
-                    PIE3bits.U1TXIE = 1;
-                    U1FIFObits.TXBE = 1;
-                    U1CON0bits.TXEN = 1;
+                    PIE3bits.U1TXIE = 1;// Enable interrups
+                    U1FIFObits.TXBE = 1;// Clear buffers
+                    U1CON0bits.TXEN = 1;// Enable module
                 }
                 parameters_reset(&tx_parameters);
                 
                 flags.uart_rx_end = 0;
                 
-            }else if(tx_parameters.action == 'W'){
-                tx_parameters.bytes_to_write = cont_rx - 4;
-                error = write_bytes(&queue, &tx_parameters);
-                if(error == 0){
+            }else if(tx_parameters.action == 'W'){     
+                if(tx_parameters.bytes_to_write > 63){
                     
-                    int_transmit(&vector_uart,&cont);
+                    aux_bytes = tx_parameters.bytes_to_write;
+                    tx_parameters.bytes_to_write = 64;
+                    error = write_bytes(&queue, &tx_parameters);
+                    tx_parameters.bytes_to_write = aux_bytes - 64;
+                    tx_parameters.addr_low += 64;
+                   
+                    if(tx_parameters.addr_low > 255){
+                        tx_parameters.addr_high++;
+                        tx_parameters.addr_low = 0x00FF & tx_parameters.addr_low;
+                    }
+                    __delay_ms(6);
+                       
+                    
                 }
-                queue_init(&queue, &vector);
-                parameters_reset(&tx_parameters);
-                flags.uart_rx_end = 0;
+                else if(tx_parameters.bytes_to_write > 0){
+                    error = write_bytes(&queue, &tx_parameters);
+                    tx_parameters.bytes_to_write = 0;
+                    
+                }else{
+                    if(error == 0){
+                        int_transmit(&vector_uart,&cont);
+                    }
+                    queue_init(&queue, &vector);
+                    parameters_reset(&tx_parameters);
+                    flags.uart_rx_end = 0;
+                    i2c_reset();
+                }
+                
+                
                 
             }
             /*Errores:
                  - Direccion erronea +
                  - Accion erronea  +
                  - Cantidad erronea (Buffer overflow) +
-             *   - Transmision I2C
-             *   - Recepcion I2C
+             *   - Transmision I2C +
+             *   - Recepcion I2C +
              *  - 
              - Enviar por pagina
              

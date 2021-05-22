@@ -1,6 +1,6 @@
 #ifndef QUEUE_H
 #define QUEUE_H
-#define LENGTH 50 //Amount of position in the queue
+ //Amount of position in the queue
 typedef struct QUEUE{
     short int begin_flag;
     short int buffer_flag;

@@ -1,6 +1,6 @@
 #include "i2c.h"
 #include <pic18f47k42.h>
-
+#include <xc.h>
 int addr_w=0xAE;  //10101110 Slave address
 int addr_r=0xAF;
 void config_i2c(){
@@ -55,11 +55,11 @@ void config_i2c(){
     I2C1SCLPPS = 0x13;   //RC3->I2C1:SCL1;
     
     //EN enable; RSEN disabled; S Cleared by hardware after Start; CSTR Enable clocking; MODE 7-bit address; 
-    I2C1CON0 = 0x84;
+    I2C1CON0 = 0x04;
     //ACKCNT Acknowledge; ACKDT Acknowledge; ACKSTAT ACK received; ACKT 0; RXO 0; TXU 0; CSD Clock Stretching enabled; 
     I2C1CON1 = 0x80;
     //ACNT disabled; GCEN disabled; FME disabled; ABD enabled; SDAHT 300 ns hold time; BFRET 8 I2C Clock pulses; 
-    I2C1CON2 = 0x00; //Probar 0x18
+    I2C1CON2 = 0x04; //Probar 0x18
     //CLK MFINTOSC; 
     I2C1CLK = 0x03;
     //CNTIF 0; ACKTIF 0; WRIF 0; ADRIF 0; PCIF 0; RSCIF 0; SCIF 0; 
@@ -72,34 +72,42 @@ void config_i2c(){
 
 short int write_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     
-    I2C1CON0bits.EN = 1;
-    
+    I2C1CON0bits.EN = 1; // Enable module
+    I2C1PIR = 0x00;
     I2C1CNT = parameters->bytes_to_write + 2;
-    I2C1ADB1 = 0xA0; // CARGO LA DIRECCION EN EL BUFFER
-    I2C1TXB = parameters->addr_high;
+    I2C1ADB1 = 0xA0; // Load client(slave) address in buffer
+    I2C1TXB = parameters->addr_high; // High memory address
     
-    I2C1CON0bits.S = 1;   //HABILITO LA TRANSMISION 
+    I2C1CON0bits.S = 1;   //Enable transmission
     
     while(I2C1STAT1bits.TXBE == 0);
-    I2C1TXB = parameters->addr_low;
-            
+    
+    I2C1TXB = parameters->addr_low;// Low memory address
+          
     while(I2C1CNT){
-        while(I2C1STAT1bits.TXBE == 0);
-        I2C1TXB = pop(queue);        
+        while(PIR3bits.I2C1TXIF == 0){
+            if(I2C1PIR == 0x85){
+                return 0;
+            }
+        }
+        I2C1TXB = pop(queue);  // Pop value from queue        
     }
+    
     while(I2C1PIRbits.PCIF == 0);
     
     I2C1CON0bits.EN = 0;
     I2C1PIR = 0x00;
     if(I2C1ERR != 0x00){
+        I2C1ERR = 0x00;
         return 1;
     }
+    I2C1ERR = 0x00;
     return 0;
 }
 
 void read_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     int aux_rx = 0;
-    I2C1CON0bits.EN = 1;
+    I2C1CON0bits.EN = 1; // Enable module
     I2C1CNT = 2;
     I2C1ADB1 = 0xA0; // Slave address to write
     I2C1TXB = parameters->addr_high;//MSB memory address to read
@@ -128,4 +136,8 @@ void read_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     }     
     I2C1CON0bits.EN = 0;
 }
-
+void i2c_reset(){
+    I2C1CON0 = 0x04;
+    I2C1PIR = 0x00;
+    I2C1ERR = 0x00;
+}

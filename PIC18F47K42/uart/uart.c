@@ -33,20 +33,21 @@ void config_UART(){
     
     
     //X = ((Fosc/Desired baud rate)/16) - 1
-    
+    //415 9600
     U1BRGL = 0xA0;
     //207 19200
-    //415 9600
+    //A0 9600
     U1BRGH = 1;
-    
+    // 9600 1
     //Enable receiver interrupts
     //PIE3bits.U1RXIE = 1;
    
 }
 
-short int error_handler(char *vector, short int *cont){
+short int error_handler(char *vector, short int *cont, int *error){
    
     U1FIFObits.TXBE = 1, PIE3bits.U1TXIE = 1;
+    
     *(vector + 1) = 'R';
     *(vector + 2) = 'R';
     *(vector + 3) = 'E';

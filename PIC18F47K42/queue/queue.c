@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "queue.h"
-
+#define LENGTH 1100 
 /*Must be declare in main
 short int vector[LENGHT];
 */
