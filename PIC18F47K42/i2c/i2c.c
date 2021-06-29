@@ -87,6 +87,7 @@ short int write_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
     while(I2C1CNT){
         while(PIR3bits.I2C1TXIF == 0){
             if(I2C1PIR == 0x85){
+               
                 return 0;
             }
         }

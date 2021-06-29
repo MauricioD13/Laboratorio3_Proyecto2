@@ -12,7 +12,7 @@
 #define RX_BUFFER_EMPTY U1FIFObits.RXBE
 #define TO_TRANSMIT U1TXB
 #define RECEIVED U1RXB
-#include "D:/Documentos/Universidad/Semestre 8/Proyecto 2/Laboratorio3_Proyecto2/PIC18F47K42/queue/queue.h"
+#include "C:/Users/guaso/Documents/Universidad/Proyecto II/Laboratorio3_Proyecto2/PIC18F47K42/queue/queue.h"
 void config_UART();
 void transmit_UART(int value);
 short int error_handler(char *vector, short int *cont, int *error);

@@ -235,6 +235,8 @@ int main() {
         if(flags.error_handling == 1){
             flags.error_handling = error_handler(&vector_uart, &cont, &per_error);
             parameters_reset(&tx_parameters);
+            queue_init(&queue, &vector);
+            i2c_reset();
         }
         if(flags.uart_rx_end == 1){
             if(tx_parameters.action == 'R'){

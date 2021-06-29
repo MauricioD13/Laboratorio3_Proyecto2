@@ -18,16 +18,18 @@ if option == 1:
     message1.append(aux_var)
     
     aux_addr = 0 #High address
+    addr_high = aux_addr
     message.append(chr(aux_addr))
     message1.append(aux_addr)
     
     aux_addr = 0 #Low address
+    addr_low = aux_addr
     message.append(chr(aux_addr))
     message1.append(aux_addr)
     
     message.append(',')
     message1.append(',')
-    for _ in range(1000):
+    for _ in range(80):
         aux = random.randint(45,125)
         if(aux == 60):
             aux = 68
@@ -57,8 +59,8 @@ if option == 1:
     for idx, value in enumerate(message1):
         
         if(value!=','):
-            addr_low = 0x00FF & (i + aux_addr)
-            addr_high = 0xFF00 & (i + aux_addr)
+            addr_low = (addr_low + i)%256
+            addr_high = ()
             addr_high = addr_high >> 8   
             table.add_row([i,value, addr_high, addr_low])
             i += 1

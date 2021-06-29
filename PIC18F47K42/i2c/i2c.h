@@ -1,6 +1,6 @@
 #ifndef I2C_H
 #define I2C_H
-#include "D:/Documentos/Universidad/Semestre 8/Proyecto 2/Laboratorio3_Proyecto2/PIC18F47K42/queue/queue.h"
+#include "C:/Users/guaso/Documents/Universidad/Proyecto II/Laboratorio3_Proyecto2/PIC18F47K42/queue/queue.h"
 typedef struct TX_PARAMETERS{
     char action;
     char quantity;
