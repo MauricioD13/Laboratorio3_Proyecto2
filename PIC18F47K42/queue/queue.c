@@ -45,6 +45,7 @@ short int push(QUEUE *queue, short int data){
     
 }
 short int pop(QUEUE *queue){
+    
     int data = 0;
     
     if(queue->read_index == queue->write_index && queue->buffer_flag == 0){

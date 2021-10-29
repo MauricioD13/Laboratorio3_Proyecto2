@@ -12,6 +12,8 @@
 #include "queue/queue.h"
 #include <pic18f47k42.h>
 #include <xc.h>
+
+// Bits Configurations
 // CONFIG1L
 #pragma config FEXTOSC = OFF    // External Oscillator Selection (Oscillator not enabled)
 #pragma config RSTOSC = HFINTOSC_64MHZ// Reset Oscillator Selection (HFINTOSC with HFFRQ = 64 MHz and CDIV = 1:1)
@@ -61,9 +63,13 @@
 
 // CONFIG5L
 #pragma config CP = OFF         // PFM and Data EEPROM Code Protection bit (PFM and Data EEPROM code protection disabled)
+// Length of queue
 #define LENGTH 1100
 
+// Crystal Frequency
 #define _XTAL_FREQ 64000000
+
+//Queue vector
 short int vector[LENGTH];
 
 typedef struct FLAGS{
@@ -74,6 +80,7 @@ typedef struct FLAGS{
     short int queue_overflow;
 }FLAGS;
 
+//Oscilator initialization
 void oscillator_module (void){
     /*
      OSCCON1
@@ -109,26 +116,35 @@ void oscillator_module (void){
     
 }
 
-
+// rx is initialized in value that not belong to the ASCII 
 int rx = 500;
 int cont_rx;
 short int error = 0;
 int cont_tx = 0;
 int cont = 0;
+
+// Inialization of queue structure
 QUEUE queue;
-TX_PARAMETERS tx_parameters; 
+
+// Initialization of parameters structure
+TX_PARAMETERS tx_parameters;
+
 char vector_uart[5];
+
+// Initialization of flags structure
 FLAGS flags;
 char aux;
 int aux_bytes = 0;
 int amount;
+
+// UART Tx interrupt
 void __interrupt(irq(IRQ_U1TX), base(0x0008)) U1TX_isr(){
     if(flags.reading_done == 1){
         if(queue.queue_empty == 1){
             U1CON0bits.TXEN = 0, queue_init(&queue,&vector), U1FIFObits.TXBE = 1;
             PIE3bits.U1TXIE = 0;
             flags.reading_done = 0;
-        }else{
+        }else{i
             U1TXB = pop(&queue);
         }
         
@@ -145,7 +161,7 @@ void __interrupt(irq(IRQ_U1TX), base(0x0008)) U1TX_isr(){
 }
 
 
-
+// UART Rx interrupt 
 void __interrupt(irq(IRQ_U1RX),base(0x0008)) U1RX_isr(){
     
     rx = U1RXB;  
@@ -153,6 +169,7 @@ void __interrupt(irq(IRQ_U1RX),base(0x0008)) U1RX_isr(){
     
 }
 
+// Function for evaluate if there are error in the parameters
 short int error_evaluator(TX_PARAMETERS *tx_parameters){
     if(!(tx_parameters->action == 'W' || tx_parameters->action == 'R' || tx_parameters->action == 0)){
         tx_parameters->action = 0;
@@ -190,25 +207,35 @@ void parameters_reset(TX_PARAMETERS *tx_parameters){
     tx_parameters->addr_low = 0;
     cont_rx = 0;
 }
+
 int per_error = 0;
 int aux_quan;
 int main() {
     INTCON0 = 0x80;
     oscillator_module();
     init_PIC();
+    
     queue_init(&queue, &vector);
     //TRISD = 0x00;
     //ANSELD = 0x00;
     
     while (1){
+        
         if((rx == 10) && (flags.error_handling == 0)){
+            /*
+            Condition: If rx is equal to '\n' and there is no error
+            Tx Parameters: Pop values from queue
+            - action: R or W
+            - quantity: B or S
+            - address: high and low
+            */
             tx_parameters.action = pop(&queue); 
             tx_parameters.quantity = pop(&queue);
             tx_parameters.addr_high = (short int)pop(&queue); //MSB of memory address
             tx_parameters.addr_low = (short int)pop(&queue);//LSB of memory address
             error = error_evaluator(&tx_parameters);
             flags.uart_rx_end = 1;
-            tx_parameters.bytes_to_write = cont_rx - 4;
+            tx_parameters.bytes_to_write = cont_rx - 4;y
             if(error){
                 flags.error_handling = 1;
                 flags.uart_rx_end = 0;
@@ -221,7 +248,12 @@ int main() {
             
         }
         if((rx != 500) && (rx != ',') && (flags.error_handling == 0) && (flags.queue_overflow == 0)){
-            
+            /*
+            Condition: if rx is not a 500 (value out of ASCII) 
+            - Push value to the queue
+            - Evaluate counter for queue overflow
+            - Reset parameters struct
+            */
             push(&queue,rx);
             rx = 500;
             cont_rx++;
@@ -233,18 +265,46 @@ int main() {
             }
         }
         if(flags.error_handling == 1){
+            /*
+            Condition: Verify error
+            */
             flags.error_handling = error_handler(&vector_uart, &cont, &per_error);
             parameters_reset(&tx_parameters);
             queue_init(&queue, &vector);
             i2c_reset();
         }
         if(flags.uart_rx_end == 1){
+            /*
+            Condition: UART end transmition
+            */
+            /*
+            Start evaluation of actions to perform
+            RB -> Read One
+            RS -> Read many
+            WB -> Write One
+            WS -> Write many
+           */
             if(tx_parameters.action == 'R'){
                 if(tx_parameters.quantity == 'B'){
+                    /*
+                    RB
+                    - Load the amount of bytes to read
+                    - Initialized the queue
+                    - Read from memory
+                    */
                     tx_parameters.bytes_to_read = 1;
                     queue_init(&queue,&vector);
                     read_bytes(&queue, &tx_parameters);
+
                 }else{
+                    /*
+                    RS
+                    - Load auxiliar quantity
+                        If the amount of numbers to read exceeds 256 then the aux_quan is needed
+                    - Load bytes to read
+                    - Aux variable for read the first amount of bytes
+                    - Initialized the queue for receive the numbers
+                    */
                     aux_quan = pop(&queue);
                     tx_parameters.bytes_to_read = pop(&queue);
                     aux_bytes = tx_parameters.bytes_to_read;
@@ -274,7 +334,16 @@ int main() {
                 
             }else if(tx_parameters.action == 'W'){     
                 if(tx_parameters.bytes_to_write > 63){
-                    
+                    /*
+                    W
+                    The write action don't evaluate the quantity parameter (tx_parameters.quantity)
+                    Because of the memory pagination, every 64 values a restart condition 
+                    is needed
+
+                    - Change the addr low when neccesary
+
+                    */
+                
                     aux_bytes = tx_parameters.bytes_to_write;
                     tx_parameters.bytes_to_write = 64;
                     error = write_bytes(&queue, &tx_parameters);
@@ -306,20 +375,7 @@ int main() {
                 
                 
             }
-            /*Errores:
-                 - Direccion erronea +
-                 - Accion erronea  +
-                 - Cantidad erronea (Buffer overflow) +
-             *   - Transmision I2C +
-             *   - Recepcion I2C +
-             *  - 
-             - Enviar por pagina
-             
-             
-             Extras:
-             * - Manejo no secuencial
-             * - Quitar while de I2C
-            */
+
         }
         
         

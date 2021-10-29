@@ -15,7 +15,7 @@ void config_UART(){
     U1UIR = 0x00;
     
     //TX
-    TRISCbits.TRISC2 = 0; // Output TX
+    TRISCbits.TRISC2 = 0; //Output TX
     ANSELCbits.ANSELC2 = 0; //As digital
     RC6PPS = 0x13;// 0b00010011;
     U1FIFObits.STPMD = 0;
@@ -33,10 +33,10 @@ void config_UART(){
     
     
     //X = ((Fosc/Desired baud rate)/16) - 1
-    //415 9600
+    
     U1BRGL = 0xA0;
-    //207 19200
-    //A0 9600
+    //415 o A0 9600
+    
     U1BRGH = 1;
     // 9600 1
     //Enable receiver interrupts

@@ -1,8 +1,8 @@
 #include "i2c.h"
 #include <pic18f47k42.h>
 #include <xc.h>
-int addr_w=0xAE;  //10101110 Slave address
-int addr_r=0xAF;
+int addr_w = 0xAE;  //10101110 Slave address
+int addr_r = 0xAF;
 void config_i2c(){
             /**
     LATx registers
@@ -120,6 +120,7 @@ void read_bytes(QUEUE *queue, TX_PARAMETERS *parameters){
             
             
     while(I2C1STAT1bits.TXBE == 0);
+    
     I2C1TXB = parameters->addr_low;//LSB memory address to read
             
     while(I2C1STAT1bits.TXBE == 0);
